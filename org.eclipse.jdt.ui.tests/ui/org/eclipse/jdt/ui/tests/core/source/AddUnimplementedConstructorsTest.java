@@ -90,6 +90,9 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 			buf.append("     * \n");
 		}
 		buf.append("     */\n");
+		if (deprecated) {
+			buf.append("    @Deprecated\n");
+		}
 		buf.append("    public Test1() {\n");
 		buf.append("        super();\n");
 		buf.append("        // TODO\n");
@@ -1069,6 +1072,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		buf.append("    /** Constructor Comment\n");
 		buf.append("     * @deprecated\n");
 		buf.append("     */\n");
+		buf.append("    @Deprecated\n");
 		buf.append("    public Test1() {\n");
 		buf.append("        super();\n");
 		buf.append("        // TODO\n");
@@ -1078,6 +1082,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		buf.append("     * @param a\n");
 		buf.append("     * @deprecated\n");
 		buf.append("     */\n");
+		buf.append("    @Deprecated\n");
 		buf.append("    public Test1(int a) {\n");
 		buf.append("        super(a);\n");
 		buf.append("        // TODO\n");
@@ -1187,6 +1192,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		buf.append("     * @param a\n");
 		buf.append("     * @deprecated\n");
 		buf.append("     */\n");
+		buf.append("    @Deprecated\n");
 		buf.append("    public Test1(int a) {\n");
 		buf.append("        super(a);\n");
 		buf.append("        // TODO\n");

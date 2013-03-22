@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Brett Randall <javabrett@gmail.com> - Bug 404126 https://bugs.eclipse.org/404126
  *******************************************************************************/
 package org.eclipse.jdt.internal.corext.codemanipulation;
 
@@ -90,6 +91,15 @@ public final class StubUtility2 {
 		}
 	}
 
+	public static void addDeprecatedAnnotation(IJavaProject project, ASTRewrite rewrite, MethodDeclaration decl) {
+		String version= project.getOption(JavaCore.COMPILER_COMPLIANCE, true);
+		if (!JavaModelUtil.isVersionLessThan(version, JavaCore.VERSION_1_5)) {
+			final Annotation marker= rewrite.getAST().newMarkerAnnotation();
+			marker.setTypeName(rewrite.getAST().newSimpleName("Deprecated")); //$NON-NLS-1$
+			rewrite.getListRewrite(decl, MethodDeclaration.MODIFIERS2_PROPERTY).insertFirst(marker, null);
+		}
+	}
+	
 	public static MethodDeclaration createConstructorStub(ICompilationUnit unit, ASTRewrite rewrite, ImportRewrite imports, ImportRewriteContext context, IMethodBinding binding, String type, int modifiers, boolean omitSuperForDefConst, boolean todo, CodeGenerationSettings settings) throws CoreException {
 		AST ast= rewrite.getAST();
 		MethodDeclaration decl= ast.newMethodDeclaration();
@@ -155,6 +165,12 @@ public final class StubUtility2 {
 				decl.setJavadoc(javadoc);
 			}
 		}
+		
+		// bug 404126
+		if (binding.isDeprecated()) {
+			addDeprecatedAnnotation(unit.getJavaProject(), rewrite, decl);			
+		}
+		
 		return decl;
 	}
 
