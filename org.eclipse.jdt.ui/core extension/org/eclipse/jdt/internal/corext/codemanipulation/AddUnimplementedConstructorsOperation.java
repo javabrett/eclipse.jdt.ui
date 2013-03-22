@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Brett Randall <javabrett@gmail.com> - Bug 247245 https://bugs.eclipse.org/247245
  *******************************************************************************/
 package org.eclipse.jdt.internal.corext.codemanipulation;
 
@@ -216,16 +217,19 @@ public final class AddUnimplementedConstructorsOperation implements IWorkspaceRu
 			ASTNode insertion= getNodeToInsertBefore(memberRewriter);
 
 			IMethodBinding[] toImplement= fConstructorsToImplement;
+			boolean createDeprecated = true;
+			
 			if (toImplement == null) {
 				toImplement= StubUtility2.getVisibleConstructors(currTypeBinding, true, true);
+				// bug 101963 - when generating from all contructors, only use deprecated contructors if that's all there is
+				for (int i = 0; i < toImplement.length; i++) {
+					if (!toImplement[i].isDeprecated()) {
+						createDeprecated = false;
+						break;
+					}
+				}
 			}
 
-			int deprecationCount= 0;
-			for (int i= 0; i < toImplement.length; i++) {
-				if (toImplement[i].isDeprecated())
-					deprecationCount++;
-			}
-			boolean createDeprecated= deprecationCount == toImplement.length;
 			for (int i= 0; i < toImplement.length; i++) {
 				IMethodBinding curr= toImplement[i];
 				if (!curr.isDeprecated() || createDeprecated) {

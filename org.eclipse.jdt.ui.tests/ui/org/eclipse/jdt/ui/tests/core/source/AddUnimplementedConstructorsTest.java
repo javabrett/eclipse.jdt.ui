@@ -7,11 +7,14 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Brett Randall <javabrett@gmail.com> - Bug 247245 https://bugs.eclipse.org/247245
  *******************************************************************************/
 package org.eclipse.jdt.ui.tests.core.source;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -33,6 +36,7 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.NodeFinder;
@@ -41,6 +45,7 @@ import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.internal.corext.codemanipulation.AddUnimplementedConstructorsOperation;
 import org.eclipse.jdt.internal.corext.codemanipulation.CodeGenerationSettings;
 import org.eclipse.jdt.internal.corext.codemanipulation.StubUtility;
+import org.eclipse.jdt.internal.corext.codemanipulation.StubUtility2;
 import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.refactoring.util.RefactoringASTParser;
 import org.eclipse.jdt.internal.corext.template.java.CodeTemplateContextType;
@@ -76,10 +81,14 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		super(name);
 	}
 
-	private void checkDefaultConstructorWithCommentWithSuper(String con) throws IOException {
+	private void checkDefaultConstructorWithCommentWithSuper(String con, boolean deprecated) throws IOException {
 		StringBuffer buf= new StringBuffer();
 		buf.append("/** Constructor Comment\n");
-		buf.append("     * \n");
+		if (deprecated) {
+			buf.append("     * @deprecated\n");	
+		} else {
+			buf.append("     * \n");
+		}
 		buf.append("     */\n");
 		buf.append("    public Test1() {\n");
 		buf.append("        super();\n");
@@ -108,6 +117,10 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 	}
 
 	private AddUnimplementedConstructorsOperation createOperation(IType type, int insertPos) throws CoreException {
+		return createOperation(type, insertPos, null);
+	}
+	
+	private AddUnimplementedConstructorsOperation createOperation(IType type, int insertPos, IMethodBinding[] methods) throws CoreException {
 		RefactoringASTParser parser= new RefactoringASTParser(ASTProvider.SHARED_AST_LEVEL);
 		CompilationUnit unit= parser.parse(type.getCompilationUnit(), true);
 		AbstractTypeDeclaration declaration= (AbstractTypeDeclaration) ASTNodes.getParent(NodeFinder.perform(unit, type.getNameRange()), AbstractTypeDeclaration.class);
@@ -115,7 +128,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		ITypeBinding binding= declaration.resolveBinding();
 		assertNotNull("Binding for type declaration could not be resolved", binding);
 
-		return new AddUnimplementedConstructorsOperation(unit, binding, null, insertPos, true, true, true);
+		return new AddUnimplementedConstructorsOperation(unit, binding, methods, insertPos, true, true, true);
 	}
 
 	private void initCodeTemplates() {
@@ -185,7 +198,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1"}, createdMethods); //$NON-NLS-1$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n");
@@ -237,7 +250,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1", "Test1", "Test1", "Test1", "Test1", "Test1", "Test1", "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n");
@@ -818,7 +831,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n");
@@ -962,7 +975,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1", "Test1", "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n" + "\n" + "    /** Constructor Comment\n" + "     * \n" + "     */\n" + "    public Test1() {\n" + "        super();\n" + "        // TODO\n" + "    }\n" + "\n" + "    /** Constructor Comment\n" + "     * @param a\n" + "     */\n" + "    public Test1(int a) {\n" + "        super(a);\n" + "        // TODO\n" + "    }\n" + "\n" + "    /** Constructor Comment\n" + "     * @param a\n" + "     * @param boo\n" + "     */\n" + "    public Test1(int a, boolean boo) {\n" + "        super(a, boo);\n" + "        // TODO\n" + "    }\n" + "}");
@@ -998,7 +1011,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1", "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n");
@@ -1023,6 +1036,175 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		compareSource(buf.toString(), testClass.getSource());
 	}
 
+	public void testTwoConstructorsToOverrideBothDeprecated() throws Exception {
+		fJavaProject= JavaProjectHelper.createJavaProject("DummyProject", "bin");
+		assertNotNull(JavaProjectHelper.addRTJar(fJavaProject));
+
+		IPackageFragmentRoot root= JavaProjectHelper.addSourceContainer(fJavaProject, "src");
+		fPackage= root.createPackageFragment("ibm.util", true, null);
+
+		ICompilationUnit cu= fPackage.getCompilationUnit("A.java");
+		fClassA= cu.createType("public class A {\n}\n", null, true, null);
+		fClassA.createMethod("@Deprecated public A() {\nsuper();}\n", null, true, null);
+		fClassA.createMethod("@Deprecated public A(int a) {super();}\n", null, true, null);
+
+		ICompilationUnit cu2= fPackage.getCompilationUnit("Test1.java");
+		IType testClass= cu2.createType("public class Test1 extends A {\n}\n", null, true, null);
+
+		AddUnimplementedConstructorsOperation op= createOperation(testClass);
+
+		op.setOmitSuper(false);
+		op.setVisibility(Modifier.PUBLIC);
+		op.run(new NullProgressMonitor());
+		JavaModelUtil.reconcile(testClass.getCompilationUnit());
+
+		IMethod[] createdMethods= testClass.getMethods();
+		checkMethods(new String[] { "Test1", "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
+
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), true);
+
+		StringBuffer buf= new StringBuffer();
+		buf.append("public class Test1 extends A {\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * @deprecated\n");
+		buf.append("     */\n");
+		buf.append("    public Test1() {\n");
+		buf.append("        super();\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * @param a\n");
+		buf.append("     * @deprecated\n");
+		buf.append("     */\n");
+		buf.append("    public Test1(int a) {\n");
+		buf.append("        super(a);\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+
+		compareSource(buf.toString(), testClass.getSource());
+	}
+	
+	public void testThreeConstructorsToOverrideOneDeprecated() throws Exception {
+		fJavaProject= JavaProjectHelper.createJavaProject("DummyProject", "bin");
+		assertNotNull(JavaProjectHelper.addRTJar(fJavaProject));
+
+		IPackageFragmentRoot root= JavaProjectHelper.addSourceContainer(fJavaProject, "src");
+		fPackage= root.createPackageFragment("ibm.util", true, null);
+
+		ICompilationUnit cu= fPackage.getCompilationUnit("A.java");
+		fClassA= cu.createType("public class A {\n}\n", null, true, null);
+		fClassA.createMethod("public A() {\nsuper();}\n", null, true, null);
+		fClassA.createMethod("@Deprecated public A(int a) {super();}\n", null, true, null);
+		fClassA.createMethod("public A(int a, boolean boo) {super();}\n", null, true, null);
+
+		ICompilationUnit cu2= fPackage.getCompilationUnit("Test1.java");
+		IType testClass= cu2.createType("public class Test1 extends A {\n}\n", null, true, null);
+
+		AddUnimplementedConstructorsOperation op= createOperation(testClass);
+
+		op.setOmitSuper(false);
+		op.setVisibility(Modifier.PUBLIC);
+		op.run(new NullProgressMonitor());
+		JavaModelUtil.reconcile(testClass.getCompilationUnit());
+
+		IMethod[] createdMethods= testClass.getMethods();
+		checkMethods(new String[] { "Test1", "Test1" }, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
+
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[0].getSource(), false);
+
+		StringBuffer buf= new StringBuffer();
+		buf.append("public class Test1 extends A {\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * \n");
+		buf.append("     */\n");
+		buf.append("    public Test1() {\n");
+		buf.append("        super();\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * @param a\n");
+		buf.append("     * @param boo\n");
+		buf.append("     */\n");
+		buf.append("    public Test1(int a, boolean boo) {\n");
+		buf.append("        super(a, boo);\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+
+		compareSource(buf.toString(), testClass.getSource());
+	}
+	
+	public void testThreeConstructorsOneDeprecatedExplicitlySelected() throws Exception {
+		fJavaProject= JavaProjectHelper.createJavaProject("DummyProject", "bin");
+		assertNotNull(JavaProjectHelper.addRTJar(fJavaProject));
+
+		IPackageFragmentRoot root= JavaProjectHelper.addSourceContainer(fJavaProject, "src");
+		fPackage= root.createPackageFragment("ibm.util", true, null);
+
+		ICompilationUnit cu= fPackage.getCompilationUnit("A.java");
+		fClassA= cu.createType("public class A {\n}\n", null, true, null);
+		fClassA.createMethod("public A() {\nsuper();}\n", null, true, null);
+		fClassA.createMethod("@Deprecated public A(int a) {super();}\n", null, true, null);
+		fClassA.createMethod("public A(int a, boolean boo) {super();}\n", null, true, null);
+
+		ICompilationUnit cu2= fPackage.getCompilationUnit("Test1.java");
+		IType testClass= cu2.createType("public class Test1 extends A {\n}\n", null, true, null);
+
+		// select just the non-default constructors, one deprecated one not
+		RefactoringASTParser parser= new RefactoringASTParser(ASTProvider.SHARED_AST_LEVEL);
+		CompilationUnit unit = parser.parse(testClass.getCompilationUnit(), true);
+		AbstractTypeDeclaration declaration= (AbstractTypeDeclaration) ASTNodes.getParent(NodeFinder.perform(unit, testClass.getNameRange()), AbstractTypeDeclaration.class);
+		List<IMethodBinding> methodBindings = new ArrayList<IMethodBinding>();
+		if (declaration != null) {
+			ITypeBinding binding= declaration.resolveBinding();
+			if (binding != null)
+				for (IMethodBinding methodBinding : StubUtility2.getVisibleConstructors(binding, true, false)) {
+					if (methodBinding.getParameterTypes().length > 0) {
+						methodBindings.add(methodBinding);
+					}
+				}
+		}
+		
+		AddUnimplementedConstructorsOperation op= createOperation(testClass, -1, methodBindings.toArray(new IMethodBinding[] {}));
+
+		op.setOmitSuper(false);
+		op.setVisibility(Modifier.PUBLIC);
+		op.run(new NullProgressMonitor());
+		JavaModelUtil.reconcile(testClass.getCompilationUnit());
+
+		IMethod[] createdMethods= testClass.getMethods();
+		checkMethods(new String[] { "Test1", "Test1" }, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
+
+		StringBuffer buf= new StringBuffer();
+		buf.append("public class Test1 extends A {\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * @param a\n");
+		buf.append("     * @deprecated\n");
+		buf.append("     */\n");
+		buf.append("    public Test1(int a) {\n");
+		buf.append("        super(a);\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("\n");
+		buf.append("    /** Constructor Comment\n");
+		buf.append("     * @param a\n");
+		buf.append("     * @param boo\n");
+		buf.append("     */\n");
+		buf.append("    public Test1(int a, boolean boo) {\n");
+		buf.append("        super(a, boo);\n");
+		buf.append("        // TODO\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+
+		compareSource(buf.toString(), testClass.getSource());
+	}
+	
 	/*
 	 * found 2 with 5 constructors, 3 already overridden
 	 */
@@ -1057,7 +1239,7 @@ public class AddUnimplementedConstructorsTest extends CoreTests {
 		IMethod[] createdMethods= testClass.getMethods();
 		checkMethods(new String[] { "Test1", "Test1", "Test1", "Test1", "Test1"}, createdMethods); //$NON-NLS-1$ //$NON-NLS-2$
 
-		checkDefaultConstructorWithCommentWithSuper(createdMethods[3].getSource());
+		checkDefaultConstructorWithCommentWithSuper(createdMethods[3].getSource(), false);
 
 		StringBuffer buf= new StringBuffer();
 		buf.append("public class Test1 extends A {\n");
